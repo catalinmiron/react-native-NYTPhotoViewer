@@ -1,0 +1,57 @@
+{
+  "name": "react-native-NYTPhotoViewer",
+  "version": "1.1.0",
+  "description": "React native wrapper for the NYTPhotoViewer library",
+  "main": "./index.js",
+  "scripts": {
+    "build": "gulp",
+    "clean": "gulp clean",
+    "test": "gulp test"
+  },
+  "dependencies": {
+    "babel-polyfill": "6.6.1",
+    "bluebird": "3.3.4"
+  },
+  "devDependencies": {
+    "babel-core": "^6.6.5",
+    "babel-eslint": "^5.0.0-beta9",
+    "babel-jest": "^6.0.1",
+    "babel-preset-es2015": "^6.3.13",
+    "babel-preset-jest": "0.0.2",
+    "babel-preset-stage-2": "^6.5.0",
+    "bluebird": "^3.3.4",
+    "del": "^2.2.0",
+    "eslint": "^1.10.3",
+    "gulp": "^3.9.0",
+    "gulp-babel": "^6.1.1",
+    "gulp-eslint": "^1.1.1",
+    "gulp-recipe": "0.0.2",
+    "gulp-sourcemaps": "^1.6.0",
+    "jest-cli": "^0.9.0-fb3"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.5"
+  },
+  "author": {
+    "name": "Brian Neisler",
+    "email": "me@brianneisler.com"
+  },
+  "homepage": "https://github.com/sprightco/react-native-NYTPhotoViewer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sprightco/react-native-NYTPhotoViewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sprightco/react-native-NYTPhotoViewer/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "image",
+    "ios",
+    "NYTPhotoViewer",
+    "react",
+    "react-component",
+    "react-native",
+    "viewer"
+  ]
+}
