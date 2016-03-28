@@ -1,18 +1,16 @@
-import React, { Component, NativeModules, requireNativeComponent } from 'react-native';
+import { NativeModules } from 'react-native';
 import Promise from 'bluebird';
 
 const NYTPhotoViewerManager = NativeModules.NYTPhotoViewerManager;
 
-console.log('NativeModules:', NativeModules);
+export default class NYTPhotoViewer {
 
-export default class NYTPhotoViewer extends Component {
   static async hidePhotoViewer() {
-    return await doHidePhotoViewer()
+    return await doHidePhotoViewer();
   }
 
   static async showPhotoViewer(source) {
-
-    return await doShowPhotoViewer(source)
+    return await doShowPhotoViewer(source);
   }
 }
 
