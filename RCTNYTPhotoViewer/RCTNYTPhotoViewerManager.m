@@ -60,6 +60,7 @@
         photo.imageData = data;
         photo.image = [UIImage imageWithData: data];
         [self.photoViewer updateImageForPhoto:photo];
+        return callback(@[[NSNull null]]);
       });
     });
   }];
@@ -144,8 +145,8 @@ RCT_EXPORT_METHOD(showPhotoViewer:(NSString *)source callback:(RCTResponseSender
 
 - (void)photosViewControllerDidDismiss:(NYTPhotosViewController *)photosViewController {
     NSLog(@"Did Dismiss Photo Viewer: %@", photosViewController);
-    /*NSDictionary *event = @{};
-    [self.bridge.eventDispatcher sendInputEventWithName:@"dismissed" body:event];*/
+    NSDictionary *event = @{};
+    [_bridge.eventDispatcher sendDeviceEventWithName:@"NYTPhotoViewer:Dismissed" body:event];
 }
 
 @end

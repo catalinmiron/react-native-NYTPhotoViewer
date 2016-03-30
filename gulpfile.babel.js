@@ -43,7 +43,7 @@ gulp.task('babel', () => {
       loadMaps: true
     }))
     .pipe(babel({
-      presets: ['es2015', 'stage-2']
+      presets: ['es2015', 'stage-1', 'stage-2']
     }))
     .pipe(sourcemaps.write('./'))
     .pipe(gulp.dest('./dist'))
