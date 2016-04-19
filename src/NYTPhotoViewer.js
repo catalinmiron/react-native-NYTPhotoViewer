@@ -36,6 +36,14 @@ export default class NYTPhotoViewer extends EventEmitter {
     return await NYTPhotoViewer.instance.doShowPhotoViewer(source);
   }
 
+  static hideActionButton() {
+    NYTPhotoViewerManager.hideActionButton();
+  }
+
+  static showActionButton() {
+    NYTPhotoViewerManager.showActionButton();
+  }
+
   static get instance() {
     if (!this[singleton]) {
       this[singleton] = new NYTPhotoViewer(singletonEnforcer);

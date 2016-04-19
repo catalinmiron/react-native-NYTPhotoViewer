@@ -1,7 +1,7 @@
 {
   "name": "react-native-nytphotoviewer",
-  "version": "1.1.1",
-  "description": "React native wrapper for the NYTPhotoViewer library",
+  "version": "1.1.2",
+  "description": "React native wrapper for the NYTPhotoViewer iOS library",
   "main": "./index.js",
   "scripts": {
     "build": "gulp",

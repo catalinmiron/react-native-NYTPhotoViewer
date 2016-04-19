@@ -10,6 +10,7 @@
 @interface RCTNYTPhotoViewerManager() <NYTPhotosViewControllerDelegate>
 
 @property (nonatomic) NSArray *photos;
+@property (nonatomic) UIBarButtonItem *actionButton;
 
 @end
 
@@ -40,30 +41,45 @@
   RCTNYTPhoto *photo = [self.photos objectAtIndex:0];
   photo.imageData = nil;
   photo.image = nil;
-  [self.photoViewer updateImageForPhoto:photo];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self.photoViewer updateImageForPhoto:photo];
 
-  id delegate = [[UIApplication sharedApplication] delegate];
-  [[[delegate window] rootViewController] presentViewController:self.photoViewer animated:YES completion:^{
-    dispatch_async(dispatch_get_global_queue(0,0), ^{
-      NSData * data = [[NSData alloc] initWithContentsOfURL: [NSURL URLWithString: source]];
-      dispatch_async(dispatch_get_main_queue(), ^{
-        if ( data == nil ) {
+    id delegate = [[UIApplication sharedApplication] delegate];
+    [[[delegate window] rootViewController] presentViewController:self.photoViewer animated:YES completion:^{
+      dispatch_async(dispatch_get_global_queue(0,0), ^{
+        NSData * data = [[NSData alloc] initWithContentsOfURL: [NSURL URLWithString: source]];
+        dispatch_async(dispatch_get_main_queue(), ^{
+          if ( data == nil ) {
 
-          // Craft a failure message
-          NSDictionary *errorDict = @{
-              @"success" : @NO,
-              @"errMsg"  : [NSString stringWithFormat:@"Could not load image from %@", source]
-          };
-          return callback(@[errorDict]);
-        }
+            // Craft a failure message
+            NSDictionary *errorDict = @{
+                @"success" : @NO,
+                @"errMsg"  : [NSString stringWithFormat:@"Could not load image from %@", source]
+            };
+            return callback(@[errorDict]);
+          }
 
-        photo.imageData = data;
-        photo.image = [UIImage imageWithData: data];
-        [self.photoViewer updateImageForPhoto:photo];
-        return callback(@[[NSNull null]]);
+          photo.imageData = data;
+          photo.image = [UIImage imageWithData: data];
+          [self.photoViewer updateImageForPhoto:photo];
+          return callback(@[[NSNull null]]);
+        });
       });
-    });
-  }];
+    }];
+  });
+}
+
+- (void) doHideActionButton {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    self.actionButton = self.photoViewer.rightBarButtonItem;
+    [self.photoViewer setRightBarButtonItem:nil];
+  });
+}
+
+- (void) doShowActionButton {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self.photoViewer setRightBarButtonItems:@[self.actionButton]];
+  });
 }
 
 #pragma mark RCT_EXPORT
@@ -78,6 +94,13 @@ RCT_EXPORT_METHOD(showPhotoViewer:(NSString *)source callback:(RCTResponseSender
   [self doShowPhotoViewer:source callback:callback];
 }
 
+RCT_EXPORT_METHOD(hideActionButton) {
+  [self doHideActionButton];
+}
+
+RCT_EXPORT_METHOD(showActionButton) {
+  [self doShowActionButton];
+}
 
 //- (void)dismissViewControllerAnimated:(BOOL)animated completion:(void (^)(void))completion {
 //  [self dismissViewControllerAnimated:animated userInitiated:NO completion:completion];
