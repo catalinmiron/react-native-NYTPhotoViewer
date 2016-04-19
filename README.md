@@ -1,16 +1,16 @@
 # react-native-NYTPhotoViewer
-React native wrapper for the [NYTPhotoViewer iOS library]()
+React native wrapper for the [NYTPhotoViewer iOS library](https://github.com/NYTimes/NYTPhotoViewer)
 
 ## Build Status
 
-[![npm version](https://badge.fury.io/js/react-native-NYTPhotoViewer.svg)](https://badge.fury.io/js/react-native-NYTPhotoViewer)<br />
+[![npm version](https://badge.fury.io/js/react-native-nytphotoviewer.svg)](https://badge.fury.io/js/react-native-nytphotoviewer)<br />
 [![Build Status](https://travis-ci.org/sprightco/react-native-NYTPhotoViewer.svg)](https://travis-ci.org/sprightco/react-native-NYTPhotoViewer)<br />
-[![NPM](https://nodei.co/npm/react-native-NYTPhotoViewer.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/react-native-NYTPhotoViewer/)
+[![NPM](https://nodei.co/npm/react-native-nytphotoviewer.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/react-native-nytphotoviewer/)
 
 
 ## Install
 
-Run `npm install react-native-NYTPhotoViewer --save`
+Run `npm install react-native-nytphotoviewer --save`
 
 
 ### iOS
