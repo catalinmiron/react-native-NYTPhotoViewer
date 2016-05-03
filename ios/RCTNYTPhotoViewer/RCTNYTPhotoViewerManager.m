@@ -1,5 +1,8 @@
 #import "RCTNYTPhotoViewerManager.h"
 
+#import <AssetsLibrary/AssetsLibrary.h>
+#import <ImageIO/ImageIO.h>
+#import <MobileCoreServices/MobileCoreServices.h>
 #import <NYTPhotoViewer/NYTPhotosViewController.h>
 #import <NYTPhotoViewer/NYTPhoto.h>
 #import <React/RCTBridge.h>
@@ -19,6 +22,35 @@
 @implementation RCTNYTPhotoViewerManager
 
 @synthesize bridge = _bridge;
+
+static size_t getAssetBytesCallback(void *info, void *buffer, off_t position, size_t count) {
+  ALAssetRepresentation *rep = (__bridge id)info;
+
+  NSError *error = nil;
+  size_t countRead = [rep getBytes:(uint8_t *)buffer fromOffset:position length:count error:&error];
+
+  if (countRead == 0 && error) {
+    // We have no way of passing this info back to the caller, so we log it, at least.
+    NSLog(@"thumbnailForAsset:maxPixelSize: got an error reading an asset: %@", error);
+  }
+
+  return countRead;
+}
+
+static void releaseAssetCallback(void *info) {
+  // The info here is an ALAssetRepresentation which we CFRetain in thumbnailForAsset:maxPixelSize:.
+  // This release balances that retain.
+  CFRelease(info);
+}
+
++ (ALAssetsLibrary *)defaultAssetsLibrary {
+  static dispatch_once_t pred = 0;
+  static ALAssetsLibrary *library = nil;
+  dispatch_once(&pred, ^{
+    library = [[ALAssetsLibrary alloc] init];
+  });
+  return library;
+}
 
 - (id)init {
   self = [super init];
@@ -223,10 +255,103 @@
   });
 }
 
+- (void) loadAsset:(NSString *)source  {
+  dispatch_async(dispatch_get_global_queue(0,0), ^{
+    NSURL *assetUrl = [NSURL URLWithString: source];
+    RCTNYTPhoto *photo = [self.photoMap objectForKey:source];
+    ALAssetsLibrary *library = [RCTNYTPhotoViewerManager defaultAssetsLibrary];
+    [library assetForURL:assetUrl
+      resultBlock:^(ALAsset *asset) {
+
+        ALAssetRepresentation *rep = [asset defaultRepresentation];
+        NSString* MIMEType = (__bridge_transfer NSString*)UTTypeCopyPreferredTagWithClass
+                ((__bridge CFStringRef)[rep UTI], kUTTagClassMIMEType);
+
+        if ([MIMEType isEqualToString:@"image/gif"]) {
+          Byte *buffer = (Byte*)malloc(rep.size);
+          NSUInteger buffered = [rep getBytes:buffer fromOffset:0.0 length:rep.size error:nil];
+          NSData *imageData = [NSData dataWithBytesNoCopy:buffer length:buffered freeWhenDone:YES];
+          if (imageData) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+              photo.imageData = imageData;
+              [self.photoViewer updateImageForPhoto:photo];
+            });
+          } else {
+            NSLog(@"Could not load photo from source %@", source);
+            photo.loadFailed = YES;
+            //TODO BRN: Perhaps the best thing to do would be show a load error icon in the photo viewer instead of removing the photo?
+            [self.photoViewer removePhotos:@[photo]];
+          }
+        } else {
+          uint size = 1080 * 1920;
+          UIImage *image = [self thumbnailForAsset:asset maxPixelSize:size];
+
+          if (image) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+              photo.image = image;
+              [self.photoViewer updateImageForPhoto:photo];
+            });
+          } else {
+            NSLog(@"Could not load photo from source %@", source);
+            photo.loadFailed = YES;
+            //TODO BRN: Perhaps the best thing to do would be show a load error icon in the photo viewer instead of removing the photo?
+            [self.photoViewer removePhotos:@[photo]];
+          }
+        }
+      }
+      failureBlock:^(NSError *myerror) {
+        NSLog(@"Could not load photo from source %@", source);
+        photo.loadFailed = YES;
+        //TODO BRN: Perhaps the best thing to do would be show a load error icon in the photo viewer instead of removing the photo?
+        [self.photoViewer removePhotos:@[photo]];
+      }];
+  });
+}
+
+- (UIImage *)thumbnailForAsset:(ALAsset *)asset maxPixelSize:(NSUInteger)size {
+  NSParameterAssert(asset != nil);
+  NSParameterAssert(size > 0);
+
+  ALAssetRepresentation *rep = [asset defaultRepresentation];
+
+  CGDataProviderDirectCallbacks callbacks = {
+    .version = 0,
+    .getBytePointer = NULL,
+    .releaseBytePointer = NULL,
+    .getBytesAtPosition = getAssetBytesCallback,
+    .releaseInfo = releaseAssetCallback,
+  };
+
+  CGDataProviderRef provider = CGDataProviderCreateDirect((void *)CFBridgingRetain(rep), [rep size], &callbacks);
+  CGImageSourceRef source = CGImageSourceCreateWithDataProvider(provider, NULL);
+
+  CGImageRef imageRef = CGImageSourceCreateThumbnailAtIndex(source, 0, (__bridge CFDictionaryRef) @{
+    (NSString *)kCGImageSourceCreateThumbnailFromImageAlways : @YES,
+    (NSString *)kCGImageSourceThumbnailMaxPixelSize : [NSNumber numberWithInt:size],
+    (NSString *)kCGImageSourceCreateThumbnailWithTransform : @YES,
+  });
+  CFRelease(source);
+  CFRelease(provider);
+
+  if (!imageRef) {
+    return nil;
+  }
+
+  UIImage *toReturn = [UIImage imageWithCGImage:imageRef];
+
+  CFRelease(imageRef);
+
+  return toReturn;
+}
+
 - (RCTNYTPhoto *) makePhoto:(NSString *)source {
   RCTNYTPhoto *photo = [[RCTNYTPhoto alloc] initWithSource:source];
   [self.photoMap setObject:photo forKey:source];
-  [self loadPhoto:source];
+  if ([source hasPrefix:@"assets-library:"]) {
+    [self loadAsset:source];
+  } else {
+    [self loadPhoto:source];
+  }
   return photo;
 }
 
