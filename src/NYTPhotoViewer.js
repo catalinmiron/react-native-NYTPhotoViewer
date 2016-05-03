@@ -10,7 +10,9 @@ const singletonEnforcer     = Symbol();
 
 export default class NYTPhotoViewer extends EventEmitter {
 
+  static ACTION_BUTTON_PRESS = 'NYTPhotoViewer:ActionButtonPress';
   static DISMISSED = 'NYTPhotoViewer:Dismissed';
+
 
   static addListener(eventType, listener) {
     return NYTPhotoViewer.instance.addListener(eventType, listener);
@@ -40,8 +42,8 @@ export default class NYTPhotoViewer extends EventEmitter {
     NYTPhotoViewerManager.hideActionButton();
   }
 
-  static showActionButton() {
-    NYTPhotoViewerManager.showActionButton();
+  static showActionButton(options) {
+    NYTPhotoViewerManager.showActionButton(options || {});
   }
 
   static get instance() {
@@ -57,6 +59,8 @@ export default class NYTPhotoViewer extends EventEmitter {
     }
     super();
     this.handlePhotoViewerDismissed = this.handlePhotoViewerDismissed.bind(this);
+    this.handlePhotoViewerActionButtonPress = this.handlePhotoViewerActionButtonPress.bind(this);
+    DeviceEventEmitter.addListener(NYTPhotoViewer.ACTION_BUTTON_PRESS, this.handlePhotoViewerActionButtonPress);
     DeviceEventEmitter.addListener(NYTPhotoViewer.DISMISSED, this.handlePhotoViewerDismissed);
   }
 
@@ -85,6 +89,8 @@ export default class NYTPhotoViewer extends EventEmitter {
   handlePhotoViewerDismissed() {
     this.emit(NYTPhotoViewer.DISMISSED);
   }
+
+  handlePhotoViewerActionButtonPress(event) {
+    this.emit(NYTPhotoViewer.ACTION_BUTTON_PRESS, event.index);
+  }
 }
-
-

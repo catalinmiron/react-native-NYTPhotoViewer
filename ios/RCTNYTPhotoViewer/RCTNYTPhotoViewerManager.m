@@ -11,6 +11,7 @@
 
 @property (nonatomic) NSArray *photos;
 @property (nonatomic) UIBarButtonItem *actionButton;
+@property (nonatomic) UIBarButtonItem *defaultActionButton;
 
 @end
 
@@ -25,6 +26,8 @@
     RCTNYTPhoto *photo = [[RCTNYTPhoto alloc] init];
     self.photos = @[photo];
     self.photoViewer = [[NYTPhotosViewController alloc] initWithPhotos:self.photos initialPhoto:self.photos.firstObject delegate:self];
+    self.defaultActionButton = self.photoViewer.rightBarButtonItem;
+    self.actionButton = self.photoViewer.rightBarButtonItem;
   }
   return self;
 }
@@ -53,8 +56,8 @@
 
             // Craft a failure message
             NSDictionary *errorDict = @{
-                @"success" : @NO,
-                @"errMsg"  : [NSString stringWithFormat:@"Could not load image from %@", source]
+              @"success" : @NO,
+              @"errMsg"  : [NSString stringWithFormat:@"Could not load image from %@", source]
             };
             return callback(@[errorDict]);
           }
@@ -71,12 +74,26 @@
 
 - (void) doHideActionButton {
   dispatch_async(dispatch_get_main_queue(), ^{
-    self.actionButton = self.photoViewer.rightBarButtonItem;
     [self.photoViewer setRightBarButtonItem:nil];
   });
 }
 
 - (void) doShowActionButton {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self.photoViewer setRightBarButtonItems:@[self.actionButton]];
+  });
+}
+
+- (void) doShowActionButton:(NSDictionary *)options {
+  NSString *title = [options objectForKey:@"title"];
+  if (title) {
+    self.actionButton = [[UIBarButtonItem alloc] initWithTitle:title
+    style:UIBarButtonItemStylePlain
+    target:self.defaultActionButton.target
+    action:self.defaultActionButton.action];
+  } else {
+    self.actionButton = self.defaultActionButton;
+  }
   dispatch_async(dispatch_get_main_queue(), ^{
     [self.photoViewer setRightBarButtonItems:@[self.actionButton]];
   });
@@ -98,8 +115,8 @@ RCT_EXPORT_METHOD(hideActionButton) {
   [self doHideActionButton];
 }
 
-RCT_EXPORT_METHOD(showActionButton) {
-  [self doShowActionButton];
+RCT_EXPORT_METHOD(showActionButton:(NSDictionary *)options) {
+  [self doShowActionButton:options];
 }
 
 //- (void)dismissViewControllerAnimated:(BOOL)animated completion:(void (^)(void))completion {
@@ -111,65 +128,75 @@ RCT_EXPORT_METHOD(showActionButton) {
 #pragma mark - NYTPhotosViewControllerDelegate
 
 - (UIView *)photosViewController:(NYTPhotosViewController *)photosViewController referenceViewForPhoto:(id <NYTPhoto>)photo {
-    //TODO BRN:
-    return nil;
+  //TODO BRN:
+  return nil;
 }
 
 - (UIView *)photosViewController:(NYTPhotosViewController *)photosViewController loadingViewForPhoto:(id <NYTPhoto>)photo {
-    /*if ([photo isEqual:self.photos[NYTViewControllerPhotoIndexCustomEverything]]) {
-        UILabel *loadingLabel = [[UILabel alloc] init];
-        loadingLabel.text = @"Custom Loading...";
-        loadingLabel.textColor = [UIColor greenColor];
-        return loadingLabel;
-    }*/
+  /*if ([photo isEqual:self.photos[NYTViewControllerPhotoIndexCustomEverything]]) {
+  UILabel *loadingLabel = [[UILabel alloc] init];
+  loadingLabel.text = @"Custom Loading...";
+  loadingLabel.textColor = [UIColor greenColor];
+  return loadingLabel;
+}*/
 
-    return nil;
+return nil;
 }
 
 - (UIView *)photosViewController:(NYTPhotosViewController *)photosViewController captionViewForPhoto:(id <NYTPhoto>)photo {
-    /*if ([photo isEqual:self.photos[NYTViewControllerPhotoIndexCustomEverything]]) {
-        UILabel *label = [[UILabel alloc] init];
-        label.text = @"Custom Caption View";
-        label.textColor = [UIColor whiteColor];
-        label.backgroundColor = [UIColor redColor];
-        return label;
-    }*/
+  /*if ([photo isEqual:self.photos[NYTViewControllerPhotoIndexCustomEverything]]) {
+  UILabel *label = [[UILabel alloc] init];
+  label.text = @"Custom Caption View";
+  label.textColor = [UIColor whiteColor];
+  label.backgroundColor = [UIColor redColor];
+  return label;
+}*/
 
-    return nil;
+return nil;
 }
 
 - (CGFloat)photosViewController:(NYTPhotosViewController *)photosViewController maximumZoomScaleForPhoto:(id <NYTPhoto>)photo {
-    /*if ([photo isEqual:self.photos[NYTViewControllerPhotoIndexCustomMaxZoomScale]]) {
-        return 10.0f;
-    }*/
+  /*if ([photo isEqual:self.photos[NYTViewControllerPhotoIndexCustomMaxZoomScale]]) {
+  return 10.0f;
+}*/
 
-    return 2.0f;
+return 2.0f;
 }
 
 - (NSDictionary *)photosViewController:(NYTPhotosViewController *)photosViewController overlayTitleTextAttributesForPhoto:(id <NYTPhoto>)photo {
-    /*if ([photo isEqual:self.photos[NYTViewControllerPhotoIndexCustomEverything]]) {
-        return @{NSForegroundColorAttributeName: [UIColor grayColor]};
-    }*/
+  /*if ([photo isEqual:self.photos[NYTViewControllerPhotoIndexCustomEverything]]) {
+  return @{NSForegroundColorAttributeName: [UIColor grayColor]};
+}*/
 
-    return nil;
+return nil;
 }
 
 - (NSString *)photosViewController:(NYTPhotosViewController *)photosViewController titleForPhoto:(id<NYTPhoto>)photo atIndex:(NSUInteger)photoIndex totalPhotoCount:(NSUInteger)totalPhotoCount {
-    return nil;
+  return nil;
 }
 
 - (void)photosViewController:(NYTPhotosViewController *)photosViewController didNavigateToPhoto:(id <NYTPhoto>)photo atIndex:(NSUInteger)photoIndex {
-    NSLog(@"Did Navigate To Photo: %@ identifier: %lu", photo, (unsigned long)photoIndex);
+  NSLog(@"Did Navigate To Photo: %@ identifier: %lu", photo, (unsigned long)photoIndex);
 }
 
 - (void)photosViewController:(NYTPhotosViewController *)photosViewController actionCompletedWithActivityType:(NSString *)activityType {
-    NSLog(@"Action Completed With Activity Type: %@", activityType);
+  NSLog(@"Action Completed With Activity Type: %@", activityType);
+}
+
+- (BOOL)photosViewController:(NYTPhotosViewController *)photosViewController handleActionButtonTappedForPhoto:(id <NYTPhoto>)photo atIndex:(NSUInteger)photoIndex {
+  if (self.defaultActionButton != self.actionButton) {
+    NSDictionary *event = @{
+      @"index": @(photoIndex)
+    };
+    [_bridge.eventDispatcher sendDeviceEventWithName:@"NYTPhotoViewer:ActionButtonPress" body:event];
+    return YES;
+  }
+  return NO;
 }
 
 - (void)photosViewControllerDidDismiss:(NYTPhotosViewController *)photosViewController {
-    NSLog(@"Did Dismiss Photo Viewer: %@", photosViewController);
-    NSDictionary *event = @{};
-    [_bridge.eventDispatcher sendDeviceEventWithName:@"NYTPhotoViewer:Dismissed" body:event];
+  NSDictionary *event = @{};
+  [_bridge.eventDispatcher sendDeviceEventWithName:@"NYTPhotoViewer:Dismissed" body:event];
 }
 
 @end

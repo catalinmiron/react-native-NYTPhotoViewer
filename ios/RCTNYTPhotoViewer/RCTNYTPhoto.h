@@ -1,5 +1,4 @@
-@import Foundation;
-
+#import <Foundation/Foundation.h>
 #import <NYTPhotoViewer/NYTPhoto.h>
 
 @interface RCTNYTPhoto : NSObject <NYTPhoto>

@@ -1,3 +1,5 @@
+@import UIKit;
+
 #import <NYTPhotoViewer/NYTPhotosViewController.h>
 #import <React/RCTBridgeModule.h>
 #import <React/RCTBridge.h>
