@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "react-native-NYTPhotoViewer"
-  s.version      = "1.1.3"
+  s.version      = "1.1.4"
   s.summary      = "React native wrapper for the NYTPhotoViewer library"
   s.homepage     = "https://github.com/sprightco/react-native-NYTPhotoViewer"
   s.license      = "MIT"
