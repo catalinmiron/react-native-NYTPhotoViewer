@@ -9,7 +9,7 @@
 
 @interface RCTNYTPhotoViewerManager() <NYTPhotosViewControllerDelegate>
 
-@property (nonatomic) NSArray *photos;
+@property (nonatomic) NSMutableDictionary <NSString *, RCTNYTPhoto *>  *photoMap;
 @property (nonatomic) UIBarButtonItem *actionButton;
 @property (nonatomic) UIBarButtonItem *defaultActionButton;
 
@@ -23,9 +23,9 @@
 - (id)init {
   self = [super init];
   if (self != nil) {
-    RCTNYTPhoto *photo = [[RCTNYTPhoto alloc] init];
-    self.photos = @[photo];
-    self.photoViewer = [[NYTPhotosViewController alloc] initWithPhotos:self.photos initialPhoto:self.photos.firstObject delegate:self];
+
+    self.photoMap = [[NSMutableDictionary alloc] init];
+    self.photoViewer = [[NYTPhotosViewController alloc] initWithPhotos:@[] initialPhoto:nil delegate:self];
     self.defaultActionButton = self.photoViewer.rightBarButtonItem;
     self.actionButton = self.photoViewer.rightBarButtonItem;
   }
@@ -34,40 +34,18 @@
 
 - (void) doHidePhotoViewer:(RCTResponseSenderBlock)callback {
   id delegate = [[UIApplication sharedApplication] delegate];
-  [[[delegate window] rootViewController] dismissViewControllerAnimated:YES completion:^{
-    callback(@[[NSNull null]]);
-  }];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [[[delegate window] rootViewController] dismissViewControllerAnimated:YES completion:^{
+      callback(@[]);
+    }];
+  });
 }
 
-- (void) doShowPhotoViewer:(NSString *)source callback:(RCTResponseSenderBlock)callback {
-  //NOTE BRN: The loading spinner only shows the first time. This issue will need to be resolved in NYTPhotoViewer
-  RCTNYTPhoto *photo = [self.photos objectAtIndex:0];
-  photo.imageData = nil;
-  photo.image = nil;
+- (void) doShowPhotoViewer:(RCTResponseSenderBlock)callback {
+  id delegate = [[UIApplication sharedApplication] delegate];
   dispatch_async(dispatch_get_main_queue(), ^{
-    [self.photoViewer updateImageForPhoto:photo];
-
-    id delegate = [[UIApplication sharedApplication] delegate];
     [[[delegate window] rootViewController] presentViewController:self.photoViewer animated:YES completion:^{
-      dispatch_async(dispatch_get_global_queue(0,0), ^{
-        NSData * data = [[NSData alloc] initWithContentsOfURL: [NSURL URLWithString: source]];
-        dispatch_async(dispatch_get_main_queue(), ^{
-          if ( data == nil ) {
-
-            // Craft a failure message
-            NSDictionary *errorDict = @{
-              @"success" : @NO,
-              @"errMsg"  : [NSString stringWithFormat:@"Could not load image from %@", source]
-            };
-            return callback(@[errorDict]);
-          }
-
-          photo.imageData = data;
-          photo.image = [UIImage imageWithData: data];
-          [self.photoViewer updateImageForPhoto:photo];
-          return callback(@[[NSNull null]]);
-        });
-      });
+      callback(@[]);
     }];
   });
 }
@@ -99,6 +77,160 @@
   });
 }
 
+- (void) doDisplayPhotoAtIndex:(NSInteger)index callback:(RCTResponseSenderBlock)callback {
+  id photo = [self.photoViewer photoAtIndex:index];
+  if (!photo) {
+    NSDictionary *errorDict = @{
+      @"success" : @NO,
+      @"type" : @"NoPhotoAtIndex",
+      @"message"  : [NSString stringWithFormat:@"No photo at index %@", index]
+    };
+    return callback(@[errorDict]);
+  }
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self.photoViewer displayPhoto:photo animated:YES];
+    callback(@[]);
+  });
+}
+
+- (void) doDisplayPhotoWithSource:(NSString *)source callback:(RCTResponseSenderBlock)callback {
+  RCTNYTPhoto *photo = [self.photoMap objectForKey:source];
+  if (!photo) {
+    NSDictionary *errorDict = @{
+      @"success" : @NO,
+      @"type" : @"NoPhotoWithSource",
+      @"message"  : [NSString stringWithFormat:@"No photo was found with source %@", source]
+    };
+    return callback(@[errorDict]);
+  }
+
+  NSUInteger index = [self.photoViewer indexOfPhoto:photo];
+  if (index == NSNotFound) {
+    NSDictionary *errorDict = @{
+      @"success" : @NO,
+      @"type" : @"NoPhotoWithSource",
+      @"message"  : [NSString stringWithFormat:@"No photo was found with source %@", source]
+    };
+    return callback(@[errorDict]);
+  }
+
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self.photoViewer displayPhoto:photo animated:YES];
+    callback(@[]);
+  });
+}
+
+- (void) doAddPhotos:(NSArray <NSString *> *)sources callback:(RCTResponseSenderBlock)callback {
+  NSMutableArray *photos = [[NSMutableArray alloc] init];
+  for (NSString *source in sources) {
+    RCTNYTPhoto *photo = [self generatePhoto:source];
+    if (photo) {
+      NSUInteger index = [self.photoViewer indexOfPhoto:photo];
+      if (index == NSNotFound) {
+        [photos addObject:photo];
+      }
+    }
+  }
+
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self.photoViewer addPhotos:photos];
+    callback(@[]);
+  });
+}
+
+- (void) doClearPhotos:(RCTResponseSenderBlock)callback {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self.photoViewer clearPhotos];
+    callback(@[]);
+  });
+}
+
+- (void) doIndexOfPhoto:(NSString *)source callback:(RCTResponseSenderBlock)callback {
+  RCTNYTPhoto *photo = [self.photoMap objectForKey:source];
+  if (photo) {
+    NSUInteger index = [self.photoViewer indexOfPhoto:photo];
+    if (index == NSNotFound) {
+      return callback(@[[NSNull null], @-1]);
+    }
+    return callback(@[[NSNull null], @(index)]);
+  }
+  NSDictionary *errorDict = @{
+    @"success" : @NO,
+    @"type" : @"NoPhotoWithSource",
+    @"message"  : [NSString stringWithFormat:@"No photo was found with source %@", source]
+  };
+  callback(@[errorDict]);
+}
+
+- (void) doPhotoAtIndex:(NSInteger)index callback:(RCTResponseSenderBlock)callback {
+  RCTNYTPhoto *photo = (RCTNYTPhoto *)[self.photoViewer photoAtIndex:index];
+  if (photo) {
+    callback(@[[NSNull null], photo.source]);
+  } else {
+    NSDictionary *errorDict = @{
+      @"success" : @NO,
+      @"type" : @"NoPhotoAtIndex",
+      @"message"  : [NSString stringWithFormat:@"No photo at index %@", index]
+    };
+    callback(@[errorDict]);
+  }
+}
+
+- (void) doRemovePhotos:(NSArray *)sources callback:(RCTResponseSenderBlock)callback {
+
+}
+
+- (void) doUpdatePhotoAtIndex:(NSInteger)index source:(NSString *)source callback:(RCTResponseSenderBlock)callback {
+  // RCTNYTPhoto *photo = [self.photoViewer objectAtIndex:0];
+  // photo.imageData = nil;
+  // photo.image = nil;
+  // dispatch_async(dispatch_get_main_queue(), ^{
+  //   [self.photoViewer updateImageForPhoto:photo];
+  // });
+}
+
+
+#pragma mark HELPER_METHODS
+
+- (RCTNYTPhoto *) generatePhoto:(NSString *)source {
+  RCTNYTPhoto *photo = [self.photoMap objectForKey:source];
+  if (!photo) {
+    photo = [self makePhoto:source];
+  }
+  if (photo.isLoadFailed) {
+    return nil;
+  }
+  return photo;
+}
+
+//callback:(void(^)(NSData *))handler
+- (void) loadPhoto:(NSString *)source  {
+  dispatch_async(dispatch_get_global_queue(0,0), ^{
+    NSData * data = [[NSData alloc] initWithContentsOfURL: [NSURL URLWithString: source]];
+    dispatch_async(dispatch_get_main_queue(), ^{
+      RCTNYTPhoto *photo = [self.photoMap objectForKey:source];
+      if ( data == nil ) {
+        NSLog(@"Could not load photo from source %@", source);
+        photo.loadFailed = YES;
+        //TODO BRN: Perhaps the best thing to do would be show a load error icon in the photo viewer instead of removing the photo?
+        [self.photoViewer removePhotos:@[photo]];
+        return;
+      }
+      photo.imageData = data;
+      //photo.image = [UIImage imageWithData: data];
+      [self.photoViewer updateImageForPhoto:photo];
+    });
+  });
+}
+
+- (RCTNYTPhoto *) makePhoto:(NSString *)source {
+  RCTNYTPhoto *photo = [[RCTNYTPhoto alloc] initWithSource:source];
+  [self.photoMap setObject:photo forKey:source];
+  [self loadPhoto:source];
+  return photo;
+}
+
+
 #pragma mark RCT_EXPORT
 
 RCT_EXPORT_MODULE();
@@ -107,8 +239,8 @@ RCT_EXPORT_METHOD(hidePhotoViewer:(RCTResponseSenderBlock)callback) {
   [self doHidePhotoViewer:callback];
 }
 
-RCT_EXPORT_METHOD(showPhotoViewer:(NSString *)source callback:(RCTResponseSenderBlock)callback) {
-  [self doShowPhotoViewer:source callback:callback];
+RCT_EXPORT_METHOD(showPhotoViewer:(RCTResponseSenderBlock)callback) {
+  [self doShowPhotoViewer:callback];
 }
 
 RCT_EXPORT_METHOD(hideActionButton) {
@@ -119,10 +251,37 @@ RCT_EXPORT_METHOD(showActionButton:(NSDictionary *)options) {
   [self doShowActionButton:options];
 }
 
-//- (void)dismissViewControllerAnimated:(BOOL)animated completion:(void (^)(void))completion {
-//  [self dismissViewControllerAnimated:animated userInitiated:NO completion:completion];
-//}
+RCT_EXPORT_METHOD(displayPhotoAtIndex:(NSInteger)index callback:(RCTResponseSenderBlock)callback) {
+  [self doDisplayPhotoAtIndex:index callback:callback];
+}
 
+RCT_EXPORT_METHOD(displayPhotoWithSource:(NSString *)source callback:(RCTResponseSenderBlock)callback) {
+  [self doDisplayPhotoWithSource:source callback:callback];
+}
+
+RCT_EXPORT_METHOD(addPhotos:(NSArray *)sources callback:(RCTResponseSenderBlock)callback) {
+  [self doAddPhotos:sources callback:callback];
+}
+
+RCT_EXPORT_METHOD(clearPhotos:(RCTResponseSenderBlock)callback) {
+  [self doClearPhotos:callback];
+}
+
+RCT_EXPORT_METHOD(indexOfPhoto:(NSString *)source callback:(RCTResponseSenderBlock)callback) {
+  [self doIndexOfPhoto:source callback:callback];
+}
+
+RCT_EXPORT_METHOD(photoAtIndex:(NSInteger)index callback:(RCTResponseSenderBlock)callback) {
+  [self doPhotoAtIndex:index callback:callback];
+}
+
+RCT_EXPORT_METHOD(removePhotos:(NSArray *)sources callback:(RCTResponseSenderBlock)callback) {
+  [self doRemovePhotos:sources callback:callback];
+}
+
+RCT_EXPORT_METHOD(updatePhotoAtIndex:(NSInteger)index source:(NSString *)source callback:(RCTResponseSenderBlock)callback) {
+  [self doUpdatePhotoAtIndex:index source:source callback:callback];
+}
 
 
 #pragma mark - NYTPhotosViewControllerDelegate
